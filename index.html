@@ -27,7 +27,7 @@
       mask-image: linear-gradient(#000, transparent 90%);
     }
     button { font: inherit; }
-    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+    button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
     button { -webkit-tap-highlight-color: transparent; }
     [hidden] { display: none !important; }
     svg { display: block; }
@@ -68,6 +68,16 @@
     .score .stat-value { color: var(--accent); }
     .progress { height: 5px; border-radius: 10px; background: var(--border); margin-top: 14px; overflow: hidden; }
     .progress-fill { width: 0; height: 100%; background: var(--accent); border-radius: inherit; transition: width .4s ease; }
+    .mission-info { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--muted); font-size: 12px; margin-top: 12px; }
+    .storage-status { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+    .next.secondary { background: var(--panel-raised); color: var(--text); border: 1px solid var(--answer-border); margin-top: 10px; }
+    .review { text-align: left; margin-top: 22px; border: 1px solid var(--answer-border); border-radius: 8px; padding: 14px; }
+    .review summary { cursor: pointer; font-weight: 700; min-height: 32px; }
+    .review-entry { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+    .review-entry h3 { font-size: 16px; line-height: 1.4; margin: 0 0 10px; }
+    .review-entry p { font-size: 14px; margin: 6px 0; }
+    .review-entry .explanation { color: var(--muted); }
+    .record-message { color: var(--accent); font-size: 14px; margin-top: 16px; }
     .card { padding: 28px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
     .question-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 17px; }
     .tag { color: var(--accent); font: 10px/1.5 Consolas, monospace; text-transform: uppercase; letter-spacing: 1.2px; border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; background: var(--panel-raised); }
@@ -170,6 +180,8 @@
         <div class="score"><div class="stat-label">SCORE</div><div class="stat-value"><span id="score">0000</span> <small>PTS</small></div></div>
       </div>
       <div class="progress" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" aria-valuetext="0 of 10 questions answered"><div class="progress-fill"></div></div>
+      <div class="mission-info"><span id="mission-mode">Curated mission</span><span id="personal-best">Best: no completed missions</span></div>
+      <p class="storage-status" id="storage-status" role="status" hidden></p>
     </section>
     <section class="card">
       <div id="quiz">
@@ -190,7 +202,13 @@
         <div class="result-label">CORRECT ANSWERS</div>
         <div class="flight-log" id="flight-log" aria-hidden="true"></div>
         <div class="debrief"><div><strong id="result-points"></strong><span>Total points</span></div><div><strong id="accuracy"></strong><span>Accuracy</span></div></div>
+        <p class="record-message" id="record-message" hidden></p>
+        <details class="review" id="review">
+          <summary id="review-summary">Review missed answers</summary>
+          <div id="review-entries"></div>
+        </details>
         <button class="next" id="restart"><span>Launch another mission</span><span aria-hidden="true">&orarr;</span></button>
+        <button class="next secondary" id="shuffle"><span>Play shuffled mission</span><span aria-hidden="true">&rightleftarrows;</span></button>
         <div class="card-footer">NO COINS NEEDED. JUST CURIOSITY.</div>
       </div>
     </section>
@@ -198,26 +216,132 @@
   </main>
   <script>
     "use strict";
-    const questions = [
-      { category: "First contact", question: "Who was the first human to travel into space?", answers: ["Neil Armstrong", "Yuri Gagarin", "Buzz Aldrin", "John Glenn"], correct: 1, explanation: "Yuri Gagarin orbited Earth aboard Vostok 1 on April 12, 1961. His flight lasted 108 minutes." },
-      { category: "Moon missions", question: "Which Apollo mission first landed humans on the Moon?", answers: ["Apollo 8", "Apollo 13", "Apollo 11", "Apollo 17"], correct: 2, explanation: "Apollo 11 landed in July 1969. Neil Armstrong and Buzz Aldrin explored the surface while Michael Collins orbited above." },
-      { category: "Red planet", question: "Which rover landed on Mars in February 2021?", answers: ["Perseverance", "Curiosity", "Opportunity", "Spirit"], correct: 0, explanation: "Perseverance touched down in Jezero Crater on February 18, 2021, to search for signs of ancient microbial life." },
-      { category: "Orbital life", question: "About how long does the International Space Station take to orbit Earth?", answers: ["24 hours", "12 hours", "30 minutes", "90 minutes"], correct: 3, explanation: "The ISS circles Earth roughly every 90 minutes, giving its crew about 16 sunrises and sunsets each day." },
-      { category: "Deep space", question: "Which spacecraft was the first to enter interstellar space?", answers: ["New Horizons", "Voyager 1", "Pioneer 11", "Cassini"], correct: 1, explanation: "Voyager 1 crossed the heliopause in 2012, becoming the first spacecraft to reach interstellar space." },
-      { category: "Cosmic vision", question: "What kind of light does the James Webb Space Telescope primarily observe?", answers: ["Ultraviolet", "X-rays", "Infrared", "Radio waves"], correct: 2, explanation: "Webb observes infrared light, letting it peer through cosmic dust and detect light from some of the earliest galaxies." },
-      { category: "Space pioneers", question: "Who was the first woman in space?", answers: ["Valentina Tereshkova", "Sally Ride", "Mae Jemison", "Svetlana Savitskaya"], correct: 0, explanation: "Valentina Tereshkova flew aboard Vostok 6 in June 1963, orbiting Earth 48 times during her mission." },
-      { category: "Outer worlds", question: "Which world did the Huygens probe land on in 2005?", answers: ["Europa", "Mars", "Venus", "Titan"], correct: 3, explanation: "Huygens landed on Saturn's moon Titan, making the first landing on a world in the outer solar system." },
-      { category: "Rocket science", question: "Why can a rocket accelerate in the vacuum of space?", answers: ["It pushes against starlight", "It expels exhaust in the opposite direction", "It needs air to push against", "It switches off gravity"], correct: 1, explanation: "A rocket expels exhaust backward and gains forward momentum. Newton's third law works even without an atmosphere." },
-      { category: "Final frontier", question: "Which NASA program aims to return humans to the Moon?", answers: ["Gemini", "Mercury", "Artemis", "Skylab"], correct: 2, explanation: "Artemis aims to return astronauts to the Moon and build experience for future human missions to Mars." }
+    const MISSION_SIZE = 10;
+    const POINTS_PER_ANSWER = 100;
+    const BEST_KEY = "cosmic-cadet.bests.v1";
+    const curatedIds = ["gagarin", "apollo", "perseverance", "iss", "voyager", "webb", "tereshkova", "huygens", "rockets", "artemis"];
+    const questionBank = [
+      { id: "gagarin", category: "First contact", question: "Who was the first human to travel into space?", answers: ["Neil Armstrong", "Yuri Gagarin", "Buzz Aldrin", "John Glenn"], correct: 1, explanation: "Yuri Gagarin orbited Earth aboard Vostok 1 on April 12, 1961. His flight lasted 108 minutes." },
+      { id: "apollo", category: "Moon missions", question: "Which Apollo mission first landed humans on the Moon?", answers: ["Apollo 8", "Apollo 13", "Apollo 11", "Apollo 17"], correct: 2, explanation: "Apollo 11 landed in July 1969. Neil Armstrong and Buzz Aldrin explored the surface while Michael Collins orbited above." },
+      { id: "perseverance", category: "Red planet", question: "Which rover landed on Mars in February 2021?", answers: ["Perseverance", "Curiosity", "Opportunity", "Spirit"], correct: 0, explanation: "Perseverance touched down in Jezero Crater on February 18, 2021, to search for signs of ancient microbial life." },
+      { id: "iss", category: "Orbital life", question: "About how long does the International Space Station take to orbit Earth?", answers: ["24 hours", "12 hours", "30 minutes", "90 minutes"], correct: 3, explanation: "The ISS circles Earth roughly every 90 minutes, giving its crew about 16 sunrises and sunsets each day." },
+      { id: "voyager", category: "Deep space", question: "Which spacecraft first crossed the heliopause into interstellar space?", answers: ["New Horizons", "Voyager 1", "Pioneer 11", "Cassini"], correct: 1, explanation: "Voyager 1 crossed the heliopause, the boundary of the Sun's solar-wind bubble, in 2012. This is not the same as leaving the distant Oort Cloud." },
+      { id: "webb", category: "Cosmic vision", question: "What kind of light does the James Webb Space Telescope primarily observe?", answers: ["Ultraviolet", "X-rays", "Infrared", "Radio waves"], correct: 2, explanation: "Webb observes infrared light, letting it peer through cosmic dust and detect light from some of the earliest galaxies." },
+      { id: "tereshkova", category: "Space pioneers", question: "Who was the first woman in space?", answers: ["Valentina Tereshkova", "Sally Ride", "Mae Jemison", "Svetlana Savitskaya"], correct: 0, explanation: "Valentina Tereshkova flew aboard Vostok 6 in June 1963, orbiting Earth 48 times during her mission." },
+      { id: "huygens", category: "Outer worlds", question: "Which world did the Huygens probe land on in 2005?", answers: ["Europa", "Mars", "Venus", "Titan"], correct: 3, explanation: "Huygens landed on Saturn's moon Titan, making the first landing on a world in the outer solar system." },
+      { id: "rockets", category: "Rocket science", question: "Why can a rocket accelerate in the vacuum of space?", answers: ["It pushes against Earth's magnetic field", "It expels exhaust in the opposite direction", "It needs surrounding air to push against", "It relies only on gravity to accelerate"], correct: 1, explanation: "A rocket expels exhaust backward and gains forward momentum. Newton's third law works even without an atmosphere." },
+      { id: "artemis", category: "Final frontier", question: "Which NASA program aims to return humans to the Moon?", answers: ["Gemini", "Mercury", "Artemis", "Skylab"], correct: 2, explanation: "Artemis aims to return astronauts to the Moon and build experience for future human missions to Mars." },
+      { id: "sputnik", category: "Space pioneers", question: "What was the first artificial satellite to orbit Earth?", answers: ["Explorer 1", "Sputnik 1", "Vostok 1", "Apollo 1"], correct: 1, explanation: "The Soviet Union launched Sputnik 1 on October 4, 1957, beginning the space age." },
+      { id: "leonov", category: "Spacewalks", question: "Who performed the first spacewalk?", answers: ["Yuri Gagarin", "John Glenn", "Alexei Leonov", "Neil Armstrong"], correct: 2, explanation: "Alexei Leonov left his Voskhod 2 spacecraft for the first spacewalk on March 18, 1965." },
+      { id: "parker", category: "Solar science", question: "Which star does Parker Solar Probe study up close?", answers: ["The Sun", "Sirius", "Proxima Centauri", "Polaris"], correct: 0, explanation: "Parker Solar Probe studies the Sun's outer atmosphere, the corona, and the solar wind." },
+      { id: "pluto", category: "Distant worlds", question: "Which dwarf planet did New Horizons fly past in July 2015?", answers: ["Ceres", "Eris", "Haumea", "Pluto"], correct: 3, explanation: "New Horizons flew past Pluto on July 14, 2015, revealing its mountains, plains, and moons." },
+      { id: "cassini", category: "Ringed worlds", question: "Which planet did Cassini orbit from 2004 to 2017?", answers: ["Jupiter", "Saturn", "Uranus", "Neptune"], correct: 1, explanation: "Cassini explored Saturn, its rings, and its moons before ending its mission in Saturn's atmosphere." },
+      { id: "bennu", category: "Sample return", question: "Which asteroid did OSIRIS-REx collect a sample from?", answers: ["Ryugu", "Vesta", "Bennu", "Eros"], correct: 2, explanation: "OSIRIS-REx collected material from Bennu and delivered its sample capsule to Earth in September 2023." },
+      { id: "rosetta", category: "Comet chase", question: "What type of object did ESA's Rosetta mission orbit?", answers: ["A comet", "A planet", "A star", "An artificial satellite"], correct: 0, explanation: "Rosetta orbited comet 67P/Churyumov-Gerasimenko. Its Philae lander touched down on the comet in 2014." },
+      { id: "chandrayaan", category: "Lunar explorers", question: "Which country launched the Chandrayaan-3 Moon mission?", answers: ["Japan", "China", "France", "India"], correct: 3, explanation: "India's space agency, ISRO, launched Chandrayaan-3, whose lander touched down on the Moon in August 2023." },
+      { id: "hayabusa", category: "Asteroid explorers", question: "What type of object did Japan's Hayabusa2 collect samples from?", answers: ["A comet", "An asteroid", "A moon", "A planet"], correct: 1, explanation: "JAXA's Hayabusa2 collected samples from the asteroid Ryugu and returned them to Earth in 2020." },
+      { id: "solar", category: "Spacecraft power", question: "What do spacecraft solar panels turn into electricity?", answers: ["Radio signals", "Cosmic dust", "Sunlight", "Gravity"], correct: 2, explanation: "Solar cells convert sunlight into electricity to power spacecraft instruments and other systems." }
     ];
     const $ = (id) => document.getElementById(id);
     let current = 0;
     let score = 0;
     let answered = false;
+    let mode = "curated";
+    let mission = [];
     const outcomes = [];
+    let bests = { curated: null, shuffled: null };
+    let storageAvailable = true;
+
+    function storageMessage(message) {
+      $("storage-status").textContent = message;
+      $("storage-status").hidden = !message;
+    }
+
+    function loadBests() {
+      let raw;
+      try {
+        raw = localStorage.getItem(BEST_KEY);
+      } catch (error) {
+        storageAvailable = false;
+        storageMessage("Browser storage is unavailable. Personal bests cannot be saved.");
+        return;
+      }
+      if (raw === null) return;
+      let saved;
+      try {
+        saved = JSON.parse(raw);
+      } catch (error) {
+        storageMessage("Saved records could not be read. A completed mission will replace them.");
+        return;
+      }
+      const validScore = value => value === null || (Number.isInteger(value) && value >= 0 && value <= MISSION_SIZE * POINTS_PER_ANSWER && value % POINTS_PER_ANSWER === 0);
+      if (!saved || saved.version !== 1 || !validScore(saved.curated) || !validScore(saved.shuffled)) {
+        storageMessage("Saved records are invalid. A completed mission will replace them.");
+        return;
+      }
+      bests = { curated: saved.curated, shuffled: saved.shuffled };
+    }
+
+    function updateBestDisplay() {
+      $("personal-best").textContent = bests[mode] === null ? "Best: no completed missions" : "Best: " + bests[mode] + " pts";
+    }
+
+    function saveBest() {
+      const previous = bests[mode];
+      if (previous !== null && score <= previous) return;
+      bests[mode] = score;
+      let saved = false;
+      if (storageAvailable) {
+        try {
+          localStorage.setItem(BEST_KEY, JSON.stringify({ version: 1, ...bests }));
+          saved = true;
+          storageMessage("");
+        } catch (error) {
+          storageAvailable = false;
+          storageMessage("Personal bests cannot be saved. Records last only for this session.");
+        }
+      }
+      $("record-message").textContent = (previous === null ? "First mission recorded" : "New personal best") + (saved ? "!" : " for this session!");
+      $("record-message").hidden = false;
+      updateBestDisplay();
+    }
+
+    function shuffledCopy(items) {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function startMission(nextMode, focus = true) {
+      mode = nextMode;
+      const selected = mode === "curated"
+        ? curatedIds.map(id => questionBank.find(question => question.id === id))
+        : shuffledCopy(questionBank).slice(0, MISSION_SIZE);
+      mission = selected.map(question => {
+        const choices = question.answers.map((text, index) => ({ text, index }));
+        const ordered = mode === "shuffled" ? shuffledCopy(choices) : choices;
+        return { ...question, answers: ordered.map(choice => choice.text), correct: ordered.findIndex(choice => choice.index === question.correct) };
+      });
+      current = 0;
+      score = 0;
+      outcomes.length = 0;
+      $("results").hidden = true;
+      $("quiz").hidden = false;
+      $("review").open = false;
+      $("review-entries").replaceChildren();
+      $("record-message").hidden = true;
+      $("mission-mode").textContent = mode === "curated" ? "Curated mission" : "Shuffled mission";
+      document.querySelector(".progress").setAttribute("aria-valuemax", mission.length);
+      updateBestDisplay();
+      updateProgress();
+      renderQuestion(focus);
+    }
 
     function renderQuestion(focus = false) {
-      const item = questions[current];
+      const item = mission[current];
       answered = false;
       $("battle").classList.remove("hit", "miss");
       $("category").textContent = item.category;
@@ -253,23 +377,19 @@
     function updateProgress() {
       const progress = document.querySelector(".progress");
       progress.setAttribute("aria-valuenow", outcomes.length);
-      progress.setAttribute("aria-valuetext", outcomes.length + " of 10 questions answered");
-      document.querySelector(".progress-fill").style.width = outcomes.length * 10 + "%";
+      progress.setAttribute("aria-valuetext", outcomes.length + " of " + mission.length + " questions answered");
+      document.querySelector(".progress-fill").style.width = outcomes.length / mission.length * 100 + "%";
       $("score").textContent = String(score).padStart(4, "0");
     }
 
     function choose(index) {
       if (answered || $("quiz").hidden) return;
       answered = true;
-      const item = questions[current];
+      const item = mission[current];
       const correct = index === item.correct;
-      const battleBounds = $("battle").getBoundingClientRect();
-      if (battleBounds.top < 0 || battleBounds.bottom > window.innerHeight) {
-        $("battle").scrollIntoView({ behavior: "instant", block: "center" });
-      }
       $("battle").classList.add(correct ? "hit" : "miss");
-      outcomes.push(correct);
-      if (correct) score += 100;
+      outcomes.push({ questionId: item.id, selectedIndex: index, correct });
+      if (correct) score += POINTS_PER_ANSWER;
       [...$("answers").children].forEach((button, i) => {
         button.disabled = true;
         if (i === item.correct || i === index) {
@@ -290,7 +410,7 @@
       explanation.textContent = (correct ? "" : "Correct answer: " + item.answers[item.correct] + ". ") + item.explanation;
       $("feedback").append(title, explanation);
       $("next").disabled = false;
-      $("next-label").textContent = current === questions.length - 1 ? "View mission results" : "Next question";
+      $("next-label").textContent = current === mission.length - 1 ? "View mission results" : "Next question";
       updateProgress();
       $("next").focus({ preventScroll: true });
     }
@@ -298,8 +418,8 @@
     function showResults() {
       $("quiz").hidden = true;
       $("results").hidden = false;
-      const count = score / 100;
-      const rank = count === 10
+      const count = score / POINTS_PER_ANSWER;
+      const rank = count === mission.length
         ? ["\ud83d\udc51", "Cosmic commander!", "A flawless flight. You've earned your place among the stars."]
         : count >= 7
         ? ["\ud83d\ude80", "You're star material!", "An impressive mission, cadet. The universe is in good hands."]
@@ -311,40 +431,62 @@
       $("result-description").textContent = rank[2];
       $("correct-count").textContent = count;
       $("result-points").textContent = score.toLocaleString();
-      $("accuracy").textContent = count * 10 + "%";
-      $("flight-log").replaceChildren(...outcomes.map((hit) => {
+      $("accuracy").textContent = Math.round(count / mission.length * 100) + "%";
+      $("flight-log").replaceChildren(...outcomes.map((outcome) => {
         const block = document.createElement("span");
-        if (!hit) block.className = "miss";
+        if (!outcome.correct) block.className = "miss";
         return block;
       }));
+      renderReview();
+      saveBest();
       $("result-title").focus();
+    }
+
+    function renderReview() {
+      const missed = outcomes.filter(outcome => !outcome.correct);
+      $("review-summary").textContent = "Review missed answers (" + missed.length + ")";
+      $("review-entries").replaceChildren();
+      if (!missed.length) {
+        const message = document.createElement("p");
+        message.textContent = "No missed answers. A flawless mission!";
+        $("review-entries").append(message);
+      }
+      missed.forEach(outcome => {
+        const question = mission.find(item => item.id === outcome.questionId);
+        const entry = document.createElement("article");
+        entry.className = "review-entry";
+        const heading = document.createElement("h3");
+        heading.textContent = question.question;
+        entry.append(heading);
+        ["Your answer: " + question.answers[outcome.selectedIndex], "Correct answer: " + question.answers[question.correct], question.explanation].forEach((text, index) => {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = text;
+          if (index === 2) paragraph.className = "explanation";
+          entry.append(paragraph);
+        });
+        $("review-entries").append(entry);
+      });
     }
 
     $("next").addEventListener("click", () => {
       if (!answered) return;
-      if (current === questions.length - 1) showResults();
+      if (current === mission.length - 1) showResults();
       else { current++; renderQuestion(true); }
     });
-    $("restart").addEventListener("click", () => {
-      current = 0;
-      score = 0;
-      outcomes.length = 0;
-      $("results").hidden = true;
-      $("quiz").hidden = false;
-      updateProgress();
-      renderQuestion(true);
-    });
+    $("restart").addEventListener("click", () => startMission("curated"));
+    $("shuffle").addEventListener("click", () => startMission("shuffled"));
     document.addEventListener("keydown", (event) => {
       if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || $("quiz").hidden) return;
       if (/^[1-4]$/.test(event.key) && !answered) {
         event.preventDefault();
         choose(Number(event.key) - 1);
-      } else if (event.key === "Enter" && answered && event.target.tagName !== "BUTTON") {
+      } else if (event.key === "Enter" && answered && !event.target.closest("button, summary, a, input, select, textarea")) {
         event.preventDefault();
         $("next").click();
       }
     });
-    renderQuestion();
+    loadBests();
+    startMission("curated", false);
   </script>
 </body>
 </html>
