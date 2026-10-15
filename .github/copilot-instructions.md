@@ -15,7 +15,9 @@ Validate changes in the browser:
 
 The entire app is in `index.html`: inline CSS, HTML screens, reusable SVG symbols, and a strict-mode script. Keep runtime assets and logic self-contained, including fonts and artwork.
 
-The script owns an in-memory quiz state: `current` is the zero-based question index, `score` accumulates points, `answered` locks each question, and `outcomes` records one boolean per answered question. Reloading starts a new session.
+The canonical `questionBank` holds twenty entries. `curatedIds` defines the original ten-question mission. `mission` is a fresh ten-question copy: curated mode preserves order; shuffled mode samples without replacement and remaps shuffled choices to the correct index. `startMission(mode)` owns all replay resets.
+
+The script owns an in-memory quiz state: `current` is the zero-based mission index, `score` accumulates points, `answered` locks each question, and `outcomes` records `{ questionId, selectedIndex, correct }` per answered question. The selected index belongs to the active mission's displayed choices, not the canonical bank. Reloading starts a curated session.
 
 The UI flow is `renderQuestion()` -> `choose(index)` -> Next -> either another question or `showResults()`. `updateProgress()` derives progress from answered questions (`outcomes.length`), not the displayed question number. Restart resets all state and reuses the same rendering functions.
 
@@ -23,12 +25,15 @@ Answer buttons are generated with DOM APIs. `$()` resolves element IDs; preserve
 
 ## Quiz and interaction conventions
 
-- Keep ten questions with four answers each. Question objects contain `category`, `question`, `answers`, zero-based `correct`, and `explanation`. Ten-question assumptions also occur in markup, progress calculations, accuracy, and result rankings; changing quiz length requires updating those together.
+- Keep ten-question missions drawn from twenty bank entries with four answers each. Bank objects have stable `id`, `category`, `question`, `answers`, zero-based `correct`, and `explanation`. Never mutate bank choices when shuffling. Ten-question assumptions remain in markup and result rankings; changing mission length requires updating those together.
 - Award 100 points per correct answer, with no penalty for wrong answers. Results derive correct count from `score / 100`; the dashboard score is padded to four digits.
 - Both click and number-key paths go through `choose()`. Its guard prevents multiple scores or answers after results. Selecting an answer disables all choices and enables Next; wrong selections also reveal the correct choice.
 - Number keys 1-4 choose answers. The Enter shortcut advances from non-button targets; focused buttons retain native keyboard activation. Repeated and Alt/Ctrl/Meta-modified key events are ignored.
-- After answering, focus moves to Next without scrolling. New questions and results focus their `tabindex="-1"` headings. Answering also brings the battle scene into view if needed.
+- After answering, focus moves to Next without scrolling; the viewport stays stable while battle animations run in place. New questions and results focus their `tabindex="-1"` headings.
 - Battle state is CSS-driven: `.battle.hit` fires at and eliminates `.target`; `.battle.miss` fires past it. `renderQuestion()` clears both classes, restoring the target. Do not make scoring or navigation depend on animation completion.
+- Results use native `details`/`summary` for missed-answer review. Each entry resolves the selected and correct answers from the active mission. Review must not mutate outcomes or scoring; either replay clears and collapses it.
+- Personal bests use `cosmic-cadet.bests.v1` in localStorage: `{ version: 1, curated, shuffled }`. Each mode's value is null or an integer from 0 to 1000 in 100-point steps. Update only on first completion or improvement. Storage failures must produce visible status and retain in-session records; never imply an unsaved record persisted.
+- Validate shuffled replay against the canonical answer text, not memorized answer positions. Check mode-specific bests across reload, ties, zero scores, malformed data, and blocked storage. Browser-local file storage can differ from the integrated preview origin.
 
 ## Visual and accessibility conventions
 
